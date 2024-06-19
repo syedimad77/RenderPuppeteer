@@ -28,7 +28,6 @@ const PORT = process.env.PORT || 3002;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Multer setup for file uploads
 const uploadStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadPath = './uploads';
@@ -48,14 +47,12 @@ app.use((req, res, next) => {
     next();
 });
 
-// Rate limiter for sending messages
 const sendMessageLimiter = rateLimit({
-    windowMs: 30 * 60 * 1000, // 30 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    windowMs: 30 * 60 * 1000,
+    max: 100,
     message: "Too many messages sent from this IP, please try again after a while"
 });
 
-// WhatsApp session objects
 const allSessionsObject = {};
 
 const validateClientId = (id) => {
@@ -105,7 +102,6 @@ const createWhatsappSession = (id, socket) => {
 app.post('/postlogin', (req, res) => {
     const { username, password } = req.body;
 
-    // Dummy authentication check
     if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
         res.status(200).json({ message: 'Login successful' });
     } else {
@@ -127,7 +123,7 @@ const sendMessageWithDelay = async (client, number, personalizedMessage, file) =
                 console.error('Error sending message:', error);
                 resolve();
             }
-        }, Math.floor(Math.random() * (70000 - 30000 + 1) + 30000)); // Random delay between 30 to 70 seconds
+        }, Math.floor(Math.random() * (70000 - 30000 + 1) + 30000));
     });
 };
 
@@ -154,7 +150,6 @@ app.post('/sendmessage', sendMessageLimiter, storageUpload.single('file'), async
             await sendMessageWithDelay(client, numbersArray[i], personalizedMessage, file);
         }
 
-        // Clean up uploaded file
         if (req.file) {
             fs.unlink(path.join(__dirname, 'uploads', req.file.filename), err => {
                 if (err) console.error('Error deleting file:', err);
@@ -184,10 +179,10 @@ io.on("connection", (socket) => {
         const { id } = data;
         createWhatsappSession(id, socket);
     });
-});
 
-app.get("/scrape", (req, res) => {
-    scrapeLogic(res);
+    socket.on("scrapeQR", () => {
+        scrapeLogic(socket);
+    });
 });
 
 app.get("/", (req, res) => {
